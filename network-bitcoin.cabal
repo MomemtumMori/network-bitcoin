@@ -57,7 +57,9 @@ Library
     network >= 2.3,
     text >= 0.11,
     vector >= 0.10,
-    base == 4.*
+    base == 4.*,
+    time,
+    old-locale
 
 Source-repository head
   type: git
@@ -78,5 +80,5 @@ Executable network-bitcoin-tests
     vector >= 0.10,
     base == 4.*,
     QuickCheck == 2.6.*,
-    network-bitcoin
+    network-bitcoin >= 1.0
 

@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# OPTIONS_GHC -Wall #-}
 -- | An interface to bitcoind's available wallet-related RPC calls.
 --   The implementation of these functions can be found at
@@ -65,12 +66,18 @@ module Network.Bitcoin.Wallet ( Auth(..)
 import Control.Applicative
 import Control.Monad
 import Data.Aeson as A
+import Data.Attoparsec.Number
 import qualified Data.HashMap.Lazy as HM
 import Data.Maybe
+import Data.Text
+import Data.Time
+import Data.Time.Clock
+import Data.Time.Clock.POSIX
 import Data.Vector as V
 import Network.Bitcoin.BlockChain (BlockHash)
 import Network.Bitcoin.Internal
 import Network.Bitcoin.RawTransaction (RawTransaction)
+import System.Locale
 
 -- | A plethora of information about a bitcoind instance.
 data BitcoindInfo =
@@ -415,6 +422,18 @@ listReceivedByAccount' auth minconf includeEmpty =
     callApi auth "listreceivedbyaccount" [ tj minconf, tj includeEmpty ]
     
 
+instance FromJSON POSIXTime where
+    parseJSON (Number (I s)) = return . fromIntegral $ s
+    parseJSON _ = mzero
+{-
+instance FromJSON POSIXTime where
+    parseJSON (String s) = case parseTime defaultTimeLocale "%s" (unpack s) of
+        Just d -> return d
+        _ -> mzero
+    parseJSON _ = mzero
+    -}
+deriving instance Read POSIXTime
+
 data SinceBlock = 
     SinceBlock { strransactions :: Vector SimpleTransaction
                , sbLastBlockHash :: BlockHash
@@ -456,7 +475,7 @@ data SimpleTransaction =
         , stBlockIndex :: Maybe Integer
         -- | The block time in seconds since epoch (1 Jan 1970 GMT). Is 
         --   'Nothing' unless 'trCategory' is 'TCSend' or 'TCReceive'.
-        , stBlockTime :: Maybe Integer
+        , stBlockTime :: Maybe POSIXTime
         -- | The transaction id. Is 'Nothing' unless 
         --   'trCategory' is 'TCSend' or 'TCReceive'.
         , stTransactionId :: Maybe TransactionID
@@ -465,8 +484,8 @@ data SimpleTransaction =
         --   'trCategory' is 'TCSend' or 'TCReceive'.
         , stWalletConflicts :: Maybe (Vector TransactionID)
         -- | The block time in seconds since epoch (1 Jan 1970 GMT).
-        , stTime :: Integer
-        , stTimeReceived :: Maybe Integer
+        , stTime :: POSIXTime
+        , stTimeReceived :: Maybe POSIXTime
         -- | Is 'Nothing' unless a comment is associated with the transaction.
         , stComment :: Maybe Text
         -- | Is 'Nothing' unless a \"to\" is associated with the transaction.
@@ -615,8 +634,8 @@ data DetailedTransaction =
         --   'trCategory' is 'TCSend' or 'TCReceive'.
         , dtWalletConflicts :: Maybe (Vector TransactionID)
         -- | The block time in seconds since epoch (1 Jan 1970 GMT).
-        , dtTime :: Integer
-        , dtTimeReceived :: Maybe Integer
+        , dtTime :: POSIXTime
+        , dtTimeReceived :: Maybe POSIXTime
         -- | Is 'Nothing' unless a comment is associated with the transaction.
         , dtComment :: Maybe Text
         -- | Is 'Nothing' unless a \"to\" is associated with the transaction.
